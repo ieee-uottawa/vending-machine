@@ -114,8 +114,10 @@ func NewVendingMachine() *VendingMachine {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		squareToken:   os.Getenv("SQUARE_ACCESS_TOKEN"),
-		squareAPIBase: "https://connect.squareupsandbox.com/v2",
+		//squareToken: os.Getenv("SQUARE_ACCESS_TOKEN_SANDBOX"),
+		//squareAPIBase: "https://connect.squareupsandbox.com/v2",
+		squareToken:   os.Getenv("SQUARE_ACCESS_TOKEN_PROD"),
+		squareAPIBase: "https://connect.squareup.com/v2",
 	}
 }
 

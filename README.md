@@ -26,7 +26,7 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 3. Go to Docs & Tools in the navbar and open API Explorer in another tab
 4. Open Square Dashboard for Default Test Account
 5. In the Dashboard, go to Items & Services in the sidebar, Item Library and create an item
-6. Give the item a name and a price and _MOST IMPORTANTLY_ in the Stock section there is a dropdown called VendingMachineSlot(Square) which you need to assign one of the slots to the item.
+6. Give the item a name and a price and **MOST IMPORTANTLY** in the Stock section there is a dropdown called VendingMachineSlot(Square) which you need to assign one of the slots to the item.
 7. Save the item
 8. In the API Explorer, choose the Orders API
 9. Go to Create order
