@@ -15,6 +15,7 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 ### Known Issues
 
 - Whenever NGROK is restarted, the domain changes. This needs to also be reflected in the Square Developer Dashboard's Webhooks configuration, or else it will send the Webhooks to nothing.
+- Sometimes the SSH connection disconnects but the server and ngrok are still running so you can't re-run them to get their GUI back. Run this command to kill them `pkill -f "go run ."; pkill -f "ngrok http 8000"; lsof -ti :8000 | xargs -r kill -9`
 
 # Testing
 
@@ -43,11 +44,7 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 21. Set the buyer_email_address to your email address
 22. Set the delay_duration to P1W3d
 23. Set the order_id to the one you copied earlier
-24. Run the request and copy the payment_id
-25. Go to Complete payment
-26. Paste the payment_id
-27. Set the version_token to ttOi05qRxiVRJRDhfBqkLnI4A4tidZFnzdhzuqPvFDH6o"
-28. Run the request
+24. Run the request
 
 # SSHing into the Pi
 

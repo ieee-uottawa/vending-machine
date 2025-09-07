@@ -348,12 +348,10 @@ func (vm *VendingMachine) setupRoutes() *gin.Engine {
 			return
 		}
 
-		// Create a context with timeout for the webhook processing
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
 		// Process webhook in background (like Python's BackgroundTasks)
 		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			if err := vm.HandleSquareEvent(ctx, payload); err != nil {
 				log.Printf("Error processing webhook: %v", err)
 			}
