@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 import time
+from typing import List
 
 # Relay number to GPIO pin mapping
 RELAY_PINS = {
@@ -50,6 +51,19 @@ SLOT_TRIGGERS = {
     "F4": [6, 7, 12, 13]
 }
 
+def activate_slot(relays:List[int]):
+    for r in relays:
+        GPIO.output(RELAY_PINS[r], GPIO.LOW)
+        print(f"Relay {r} ON")
+    print()
+
+    time.sleep(2)
+
+    for r in relays:
+        GPIO.output(RELAY_PINS[r], GPIO.HIGH)
+        print(f"Relay {r} OFF")
+    print()
+
 GPIO.setmode(GPIO.BCM)
 
 # Setup all relay pins
@@ -59,28 +73,28 @@ for pin in RELAY_PINS.values():
 
 try:
     while True:
-        slot = input("\nEnter slot code (A1 to F4) or 'end' to quit: ").strip().upper()
+        slot = input("\nEnter slot code (A1 to F4) or 'all' to test every slot sequentially or 'end' to quit: ").strip().upper()
 
         if slot == "END":
             print("Exiting...")
             break
+
+        if slot == "ALL":
+            for s in SLOT_TRIGGERS.keys():
+                print(f"Activating {s}: relays {relays}\n")
+                activate_slot(SLOT_TRIGGERS[s])
+            continue
 
         if slot not in SLOT_TRIGGERS:
             print("Invalid slot. Try A1 to F4.")
             continue
 
         relays = SLOT_TRIGGERS[slot]
-        print(f"Activating {slot}: relays {relays}")
+        print(f"Activating {slot}: relays {relays}\n")
 
-        for r in relays:
-            GPIO.output(RELAY_PINS[r], GPIO.LOW)
-            print(f"Relay {r} ON")
+        activate_slot(relays)
 
-        time.sleep(2)
 
-        for r in relays:
-            GPIO.output(RELAY_PINS[r], GPIO.HIGH)
-            print(f"Relay {r} OFF")
 
 except KeyboardInterrupt:
     print("\nInterrupted by user.")
