@@ -79,14 +79,17 @@ try:
             print("Exiting...")
             break
 
-        if slot == "ALL":
-            for s in SLOT_TRIGGERS.keys():
-                print(f"Activating {s}: relays {relays}\n")
-                activate_slot(SLOT_TRIGGERS[s])
+        print(slot)
+
+        if slot not in SLOT_TRIGGERS and slot != "ALL":
+            print("Invalid slot. Try A1 to F4.")
             continue
 
-        if slot not in SLOT_TRIGGERS:
-            print("Invalid slot. Try A1 to F4.")
+        if slot == "ALL":
+            for s in SLOT_TRIGGERS.keys():
+                relays = SLOT_TRIGGERS[s]
+                print(f"Activating {s}: relays {relays}\n")
+                activate_slot(relays)
             continue
 
         relays = SLOT_TRIGGERS[slot]
