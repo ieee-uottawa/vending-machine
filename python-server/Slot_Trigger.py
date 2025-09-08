@@ -57,7 +57,8 @@ def activate_slot(relays:List[int]):
         print(f"Relay {r} ON")
     print()
 
-    time.sleep(2)
+    time.sleep(3.3)
+    #time.sleep(0.5)
 
     for r in relays:
         GPIO.output(RELAY_PINS[r], GPIO.HIGH)

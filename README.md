@@ -15,6 +15,36 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 ### Known Issues
 
 - Whenever NGROK is restarted, the domain changes. This needs to also be reflected in the Square Developer Dashboard's Webhooks configuration, or else it will send the Webhooks to nothing.
+- Sometimes the SSH connection disconnects but the server and ngrok are still running so you can't re-run them to get their GUI back. Run this command to kill them `pkill -f "go run ."; pkill -f "ngrok http 8000"; lsof -ti :8000 | xargs -r kill -9`
+
+# Testing
+
+## With the Square API
+
+1. Log into the Square Developer Console
+2. Navigate to Sandbox test accounts
+3. Go to Docs & Tools in the navbar and open API Explorer in another tab
+4. Open Square Dashboard for Default Test Account
+5. In the Dashboard, go to Items & Services in the sidebar, Item Library and create an item
+6. Give the item a name and a price and **MOST IMPORTANTLY** in the Stock section there is a dropdown called VendingMachineSlot(Square) which you need to assign one of the slots to the item.
+7. Save the item
+8. In the API Explorer, choose the Orders API
+9. Go to Create order
+10. Fill in the Access token, generate an idempotency key, fill the location_id, quantity
+11. In the line_items\[0\] section, enter a quantity, in the catalog_object_id dropdown choose the ITEM_VARIATION_REGULAR option and choose item_type as ITEM
+12. Choose the state as OPEN
+13. Run the request and copy the order_id
+14. Choose the Payments API
+15. Go to Create payment
+16. Generate idempotency_key
+17. Put the source_id as cnon:card-nonce-ok
+18. Put accept_partial_authorization as False
+19. In amount_money, set the amount to anything higher than the item cost and the currency to CAD
+20. Set autocomplete to true
+21. Set the buyer_email_address to your email address
+22. Set the delay_duration to P1W3d
+23. Set the order_id to the one you copied earlier
+24. Run the request
 
 # SSHing into the Pi
 

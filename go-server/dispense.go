@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	square "github.com/square/square-go-sdk"
+	"github.com/square/square-go-sdk/client"
+	"github.com/square/square-go-sdk/option"
 	"github.com/stianeikeland/go-rpio"
 )
 
@@ -23,9 +24,7 @@ type VendingMachine struct {
 	slotRelays      map[string][]int    // Maps slot names to relay pin numbers
 	processedOrders map[string]struct{} // Set of processed order IDs
 	ordersMutex     sync.RWMutex        // Protects processedOrders from race conditions
-	httpClient      *http.Client        // Reusable HTTP client for better performance
-	squareToken     string              // Square API access token
-	squareAPIBase   string              // Square API base URL
+	squareClient    *client.Client      // Square SDK client
 }
 
 // SquareWebhookPayload represents the incoming webhook from Square
@@ -41,40 +40,6 @@ type SquareWebhookPayload struct {
 			} `json:"payment"`
 		} `json:"object"`
 	} `json:"data"`
-}
-
-// SquareOrderResponse represents the order data from Square API
-type SquareOrderResponse struct {
-	Order struct {
-		LineItems []struct {
-			CatalogObjectID string `json:"catalog_object_id"`
-			UID             string `json:"uid"`
-		} `json:"line_items"`
-	} `json:"order"`
-}
-
-// SquareCatalogResponse represents catalog object data from Square API
-type SquareCatalogResponse struct {
-	Object struct {
-		CustomAttributeValues map[string]struct {
-			CustomAttributeDefinitionID string   `json:"custom_attribute_definition_id"`
-			SelectionUIDValues          []string `json:"selection_uid_values"`
-		} `json:"custom_attribute_values"`
-	} `json:"object"`
-}
-
-// SquareDefinitionResponse represents custom attribute definition from Square API
-type SquareDefinitionResponse struct {
-	Object struct {
-		CustomAttributeDefinitionData struct {
-			SelectionConfig struct {
-				AllowedSelections []struct {
-					UID  string `json:"uid"`
-					Name string `json:"name"`
-				} `json:"allowed_selections"`
-			} `json:"selection_config"`
-		} `json:"custom_attribute_definition_data"`
-	} `json:"object"`
 }
 
 // NewVendingMachine creates a new vending machine instance
@@ -110,12 +75,13 @@ func NewVendingMachine() *VendingMachine {
 		relayPins:       relayPins,
 		slotRelays:      slotRelays,
 		processedOrders: make(map[string]struct{}),
-		// Using a timeout for HTTP client - prevents hanging requests
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		squareToken:   os.Getenv("SQUARE_ACCESS_TOKEN"),
-		squareAPIBase: "https://connect.squareupsandbox.com/v2",
+		// Create Square SDK client with production token
+		squareClient: client.NewClient(
+			//option.WithToken(os.Getenv("SQUARE_ACCESS_TOKEN_SANDBOX")),
+			//option.WithBaseURL("https://connect.squareupsandbox.com/v2"),
+			option.WithToken(os.Getenv("SQUARE_ACCESS_TOKEN_PROD")),
+			option.WithBaseURL("https://connect.squareup.com"),
+		),
 	}
 }
 
@@ -177,21 +143,6 @@ func (vm *VendingMachine) DispenseItem(slotLabel string) {
 	}()
 }
 
-// makeSquareAPIRequest is a helper function to make authenticated requests to Square API
-func (vm *VendingMachine) makeSquareAPIRequest(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Set required headers for Square API
-	req.Header.Set("Authorization", "Bearer "+vm.squareToken)
-	req.Header.Set("Square-Version", "2025-07-16")
-	req.Header.Set("Content-Type", "application/json")
-
-	return vm.httpClient.Do(req)
-}
-
 // HandleSquareEvent processes Square webhook events
 func (vm *VendingMachine) HandleSquareEvent(ctx context.Context, payload SquareWebhookPayload) error {
 	// Check if this is a payment completion event
@@ -215,30 +166,29 @@ func (vm *VendingMachine) HandleSquareEvent(ctx context.Context, payload SquareW
 
 	log.Printf("Processing order %s", orderID)
 
-	// Fetch order details from Square API
-	orderURL := fmt.Sprintf("%s/orders/%s", vm.squareAPIBase, orderID)
-	resp, err := vm.makeSquareAPIRequest(ctx, orderURL)
+	// Fetch order details using Square SDK
+	getOrderRequest := &square.GetOrdersRequest{
+		OrderID: orderID,
+	}
+
+	orderResponse, err := vm.squareClient.Orders.Get(ctx, getOrderRequest)
 	if err != nil {
 		return fmt.Errorf("failed to fetch order: %w", err)
 	}
-	defer resp.Body.Close() // Always close response bodies to prevent memory leaks
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error fetching order %s: %s", orderID, string(body))
-	}
-
-	var orderData SquareOrderResponse
-	if err := json.NewDecoder(resp.Body).Decode(&orderData); err != nil {
-		return fmt.Errorf("failed to decode order response: %w", err)
+	if orderResponse.Order == nil {
+		return fmt.Errorf("order not found: %s", orderID)
 	}
 
 	// Process each line item in the order
-	for _, item := range orderData.Order.LineItems {
-		catalogObjectID := item.CatalogObjectID
-		if catalogObjectID == "" {
-			catalogObjectID = item.UID
+	for _, item := range orderResponse.Order.LineItems {
+		catalogObjectID := ""
+		if item.CatalogObjectID != nil {
+			catalogObjectID = *item.CatalogObjectID
+		} else if item.UID != nil {
+			catalogObjectID = *item.UID
 		}
+
 		if catalogObjectID == "" {
 			log.Printf("No catalog object ID found for item")
 			continue
@@ -258,69 +208,84 @@ func (vm *VendingMachine) HandleSquareEvent(ctx context.Context, payload SquareW
 	return nil
 }
 
-// getSlotLabelFromCatalogObject fetches the slot label from Square's catalog system
+// getSlotLabelFromCatalogObject fetches the slot label from Square's catalog system using SDK
 func (vm *VendingMachine) getSlotLabelFromCatalogObject(ctx context.Context, catalogObjectID string) (string, error) {
-	// Fetch catalog object
-	objURL := fmt.Sprintf("%s/catalog/object/%s", vm.squareAPIBase, catalogObjectID)
-	resp, err := vm.makeSquareAPIRequest(ctx, objURL)
+	// Fetch catalog object using Square SDK
+	batchGetRequest := &square.BatchGetCatalogObjectsRequest{
+		ObjectIDs: []string{catalogObjectID},
+	}
+
+	catalogResponse, err := vm.squareClient.Catalog.BatchGet(ctx, batchGetRequest)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch catalog object: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error fetching catalog object: status %d", resp.StatusCode)
+	if len(catalogResponse.Objects) == 0 {
+		return "", fmt.Errorf("catalog object not found: %s", catalogObjectID)
 	}
 
-	var objData SquareCatalogResponse
-	if err := json.NewDecoder(resp.Body).Decode(&objData); err != nil {
-		return "", fmt.Errorf("failed to decode catalog response: %w", err)
+	catalogObject := catalogResponse.Objects[0]
+
+	// Extract custom attributes from the appropriate object type
+	var customAttributeValues map[string]*square.CatalogCustomAttributeValue
+
+	if catalogObject.Item != nil {
+		customAttributeValues = catalogObject.Item.CustomAttributeValues
+	} else if catalogObject.ItemVariation != nil {
+		customAttributeValues = catalogObject.ItemVariation.CustomAttributeValues
 	}
 
-	// Extract custom attributes
-	if len(objData.Object.CustomAttributeValues) == 0 {
+	// Check if we found custom attributes
+	if len(customAttributeValues) == 0 {
 		return "", fmt.Errorf("no custom attributes found")
 	}
 
 	// Get the first custom attribute (assuming only one exists)
-	var firstAttr struct {
-		CustomAttributeDefinitionID string   `json:"custom_attribute_definition_id"`
-		SelectionUIDValues          []string `json:"selection_uid_values"`
-	}
+	var firstAttrDefinitionID string
+	var firstAttrSelectionUIDs []string
 
-	for _, attr := range objData.Object.CustomAttributeValues {
-		firstAttr = attr
+	for _, attr := range customAttributeValues {
+		if attr.CustomAttributeDefinitionID != nil {
+			firstAttrDefinitionID = *attr.CustomAttributeDefinitionID
+		}
+		if attr.SelectionUIDValues != nil {
+			firstAttrSelectionUIDs = attr.SelectionUIDValues
+		}
 		break
 	}
 
-	if len(firstAttr.SelectionUIDValues) == 0 {
+	if len(firstAttrSelectionUIDs) == 0 {
 		return "", fmt.Errorf("no selection UID values found")
 	}
 
-	selectionUID := firstAttr.SelectionUIDValues[0]
-	definitionID := firstAttr.CustomAttributeDefinitionID
+	selectionUID := firstAttrSelectionUIDs[0]
 
-	// Fetch custom attribute definition
-	defURL := fmt.Sprintf("%s/catalog/object/%s", vm.squareAPIBase, definitionID)
-	defResp, err := vm.makeSquareAPIRequest(ctx, defURL)
+	// Fetch custom attribute definition using Square SDK
+	defBatchGetRequest := &square.BatchGetCatalogObjectsRequest{
+		ObjectIDs: []string{firstAttrDefinitionID},
+	}
+
+	defResponse, err := vm.squareClient.Catalog.BatchGet(ctx, defBatchGetRequest)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch definition: %w", err)
 	}
-	defer defResp.Body.Close()
 
-	if defResp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error fetching definition: status %d", defResp.StatusCode)
+	if len(defResponse.Objects) == 0 {
+		return "", fmt.Errorf("definition object not found: %s", firstAttrDefinitionID)
 	}
 
-	var defData SquareDefinitionResponse
-	if err := json.NewDecoder(defResp.Body).Decode(&defData); err != nil {
-		return "", fmt.Errorf("failed to decode definition response: %w", err)
-	}
+	definitionObject := defResponse.Objects[0]
 
 	// Find the slot label for this selection UID
-	for _, selection := range defData.Object.CustomAttributeDefinitionData.SelectionConfig.AllowedSelections {
-		if selection.UID == selectionUID {
-			return selection.Name, nil
+	if definitionObject.CustomAttributeDefinition != nil &&
+		definitionObject.CustomAttributeDefinition.CustomAttributeDefinitionData != nil &&
+		definitionObject.CustomAttributeDefinition.CustomAttributeDefinitionData.SelectionConfig != nil &&
+		definitionObject.CustomAttributeDefinition.CustomAttributeDefinitionData.SelectionConfig.AllowedSelections != nil {
+
+		for _, selection := range definitionObject.CustomAttributeDefinition.CustomAttributeDefinitionData.SelectionConfig.AllowedSelections {
+			if selection.UID != nil && selection.Name != "" && *selection.UID == selectionUID {
+				return selection.Name, nil
+			}
 		}
 	}
 
@@ -348,12 +313,10 @@ func (vm *VendingMachine) setupRoutes() *gin.Engine {
 			return
 		}
 
-		// Create a context with timeout for the webhook processing
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
 		// Process webhook in background (like Python's BackgroundTasks)
 		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			if err := vm.HandleSquareEvent(ctx, payload); err != nil {
 				log.Printf("Error processing webhook: %v", err)
 			}
