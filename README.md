@@ -6,7 +6,7 @@ IEEE uOttawa Vending Machine controller using Pi 4
 
 ## Network
 
-The Versatile Electronic Nutrient Dispenser (VEND) is runs on the BrotherLaserPrinter(BLP) network, which we think is a subnet of the subnet of eduroam that SITE is on (this should be verified). We enabled port forwarding on the BLP router for port 22, which enables us to SSH into the VEND without needing to be on the BLP network. However this does not work on any outside network.
+The Versatile Electronic Nutrient Dispenser (VEND) runs on the BrotherLaserPrinter(BLP) network, which we think is a subnet of the subnet of eduroam that SITE is on (this should be verified). We enabled port forwarding on the BLP router for port 22, which enables us to SSH into the VEND without needing to be on the BLP network. However this does not work on any outside network.
 
 ## Implementation
 
