@@ -110,3 +110,17 @@ sudo lsof -i :8080
    make tui
    ./vm-tui
 ```
+
+## System CTL (auto start on boot) files
+
+```bash
+cat /etc/systemd/system/vm-server.service
+cat /etc/systemd/system/ngrok-tunnel.service
+```
+
+## Logs on PI
+
+```bash
+journalctl -u vm-server -f
+journalctl -u ngrok-tunnel -f
+```
