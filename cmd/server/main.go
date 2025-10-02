@@ -90,7 +90,7 @@ func (vm *VendingMachine) InitializeGPIO() error {
 	log.Println("Initializing GPIO...")
 
 	if err := rpio.Open(); err != nil {
-		return fmt.Errorf("failed to open GPIO: %w", err)
+		return fmt.Errorf("failed to open GPIO (are you on the pi?): %w", err)
 	}
 
 	// Initialize all relay pins
@@ -350,3 +350,4 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+

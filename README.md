@@ -84,7 +84,9 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 
 1. Open a terminal
 2. ```bash
-   cd /home/ieeepi/dev/vending-machine/go-server
+   cd /home/ieeepi/dev/vending-machine
+   make server
+   ./vm-server
    ```
 3. ```bash
    go run .
@@ -93,3 +95,18 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
 5. ```bash
    ngrok http 8000
    ```
+
+## To check if it's already running
+
+```bash
+ps aux | grep go
+sudo lsof -i :8080
+```
+
+## TUI
+
+```bash
+   cd /home/ieeepi/dev/vending-machine
+   make tui
+   ./vm-tui
+```
