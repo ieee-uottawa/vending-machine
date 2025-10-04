@@ -6,7 +6,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: [ "npm", "run", "dev" ]
+    command: ["npm", "run", "dev"]
 
   server:
     build: ./server
@@ -15,7 +15,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: [ "./vend-server" ]
+    command: ["./vend-server"]
   db:
     image: postgres
     restart: always
@@ -24,7 +24,7 @@ services:
       POSTGRES_DB: vending_machine
       POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 1s
       timeout: 5s
       retries: 10
@@ -36,6 +36,9 @@ services:
   adminer:
     image: adminer
     restart: always
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - 8080:8080
 
