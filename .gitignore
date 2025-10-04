@@ -33,3 +33,7 @@ go.work.sum
 
 vm-server
 vm-tui
+
+*/secrets/*
+
+node_modules/*
