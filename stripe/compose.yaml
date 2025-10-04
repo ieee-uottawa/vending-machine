@@ -1,0 +1,47 @@
+services:
+  web:
+    build: ./client
+    ports:
+      - 5173:5173
+    depends_on:
+      db:
+        condition: service_healthy
+    command: [ "npm", "run", "dev" ]
+
+  server:
+    build: ./server
+    ports:
+      - 3000:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    command: [ "./vend-server" ]
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: vending_machine
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    secrets:
+      - db_password
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+
+volumes:
+  pgdata:
