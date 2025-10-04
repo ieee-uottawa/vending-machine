@@ -12,8 +12,10 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^5.0.0",
     "@stripe/stripe-js": "^8.0.0",
+    "@tailwindcss/vite": "^4.1.14",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -33,6 +35,9 @@
   "pnpm": {
     "overrides": {
       "vite": "npm:rolldown-vite@7.1.14"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide"
+    ]
   }
 }
