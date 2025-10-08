@@ -1,15 +1,16 @@
-package main
+package router
 
 import (
-	"fmt"
-	"net/http"
+	"ieeeuottawa/vend-server/internal/api/handler"
+	"ieeeuottawa/vend-server/internal/repository"
+	"ieeeuottawa/vend-server/internal/service"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func main() {
+func NewRouter() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -22,9 +23,12 @@ func main() {
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World1"))
+	userRepo := repository.NewUserRepository()
+	userService := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
+
+	r.Route("/api", func(r chi.Router) {
+		r.Mount("/users", userHandler.Routes())
 	})
-	fmt.Println("Server starting on port :3000")
-	http.ListenAndServe(":3000", r)
+	return r
 }
