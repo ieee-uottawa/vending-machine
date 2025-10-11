@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
   --color-ieeeblue: #00629b;
+  --color-primary: var(--primary);
+  --color-text: var(--text);
+  --color-contrast-text: var(--contrast-text);
+}
+
+:root,
+[data-theme="light"] {
+  --primary: #ededed;
+  --text: #000000;
+  --contrast-text: #ffffff;
+}
+[data-theme="dark"] {
+  --primary: #303030;
+  --text: #ffffff;
+  --contrast-text: #000000;
 }
