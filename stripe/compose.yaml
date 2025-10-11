@@ -1,24 +1,39 @@
 services:
   web:
     build: ./client
+    container_name: client
     ports:
       - 5173:5173
     depends_on:
-      db:
+      db-postgres:
         condition: service_healthy
     command: ["npm", "run", "dev"]
 
   server:
     build: ./server
+    container_name: server
     ports:
       - 3000:3000
     depends_on:
-      db:
+      db-postgres:
         condition: service_healthy
+      db-redis:
+        condition: service_started
     command: ["./vend-server"]
-  db:
+
+  db-redis:
+    image: redis:latest
+    restart: always
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+  db-postgres:
     image: postgres
     restart: always
+    container_name: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: vending_machine
@@ -37,7 +52,7 @@ services:
     image: adminer
     restart: always
     depends_on:
-      db:
+      db-postgres:
         condition: service_healthy
     ports:
       - 8080:8080
@@ -48,3 +63,4 @@ secrets:
 
 volumes:
   pgdata:
+  redis_data:
