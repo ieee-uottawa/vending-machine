@@ -6,7 +6,9 @@ IEEE uOttawa Vending Machine controller using Pi 4
 
 ## Network
 
-The Versatile Electronic Nutrient Dispenser (VEND) runs on the BrotherLaserPrinter(BLP) network, which we think is a subnet of the subnet of eduroam that SITE is on (this should be verified). We enabled port forwarding on the BLP router for port 22, which enables us to SSH into the VEND without needing to be on the BLP network. However this does not work on any outside network.
+The Versatile Electronic Nutrient Dispenser (VEND) runs on the BrotherLaserPrinter(BLP) network, which we think is a subnet of the subnet of eduroam that SITE is on (this should be verified). We enabled port forwarding on the BLP router for port 22, which enables us to SSH into the VEND without needing to be on the BLP network. However this does not work on any outside network. 
+
+To address this limitation, we set up a VPN Tailscale. Tailscale allows us to create a secure, private network between our devices and the VEND, regardless of which external network we are on. Each participating device, including the VEND, is connected to the same Tailscale tailnet, giving them unique IPv4 addresses within a shared virtual network. This setup removes the need for manual port forwarding. SSH access to the VEND is now possible from any device authenticated on the Tailscale network, of which the admin account is the Webmaster account.
 
 ## Implementation
 
@@ -64,6 +66,14 @@ The VEND works by leveraging Square Webhooks and the Sqaure API (for now). We ru
    ```
 3. Enter the password
 
+## From the VEND tailnet
+
+1. Ask the current Webmaster to send you an invite link to be a member in the VEND tailnet
+2. Follow the steps to join the tailnet and make sure with the Webmaster that your device is added to the network
+3. You will now be able to SSH into the VEND from anywhere using the Tailscale IP address
+ ```bash
+   ssh ieeepi@100.87.253.43 #change when new Webmaster Tailscale is set up
+   ```
 # Running the server
 
 ## Python Server
